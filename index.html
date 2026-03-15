@@ -3,172 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Coach Pro</title>
+    <title>MBA Interview Coach Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        :root { --apple-blue: #0071e3; --bg: #f5f5f7; --text: #1d1d1f; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        
-        .dashboard { 
-            background: rgba(255,255,255,0.9); 
-            backdrop-filter: blur(20px); 
-            padding: 20px; 
-            border-bottom: 1px solid #d2d2d7; 
-            position: sticky; top: 0; z-index: 100;
-        }
-        .controls { display: flex; gap: 15px; align-items: flex-end; max-width: 1200px; margin: 0 auto; width: 100%; flex-wrap: wrap; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; }
-        
-        button { border-radius: 8px; border: none; padding: 10px 18px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; }
-        .btn-primary { background: var(--apple-blue); color: white; }
-        .btn-loop { background: #34c759; color: white; }
-        .btn-stop { background: #ff3b30; color: white; }
-        
-        #display-area { flex: 1; overflow-y: auto; padding: 100px 0 300px 0; display: flex; flex-direction: column; align-items: center; }
-        #script-content { width: 90%; max-width: 800px; font-size: 28px; line-height: 1.7; color: #86868b; }
-        
-        .segment { cursor: pointer; border-radius: 4px; padding: 2px 4px; transition: 0.1s; display: inline; }
-        .segment:hover { background: #e8e8ed; color: var(--text); }
-        .active { color: var(--text) !important; font-weight: 700; background: #cce4ff; }
-        .loop-range { border-bottom: 3px solid #34c759; background: #e2f9e9; }
-        
-        .hint-bar { width: 100%; text-align: center; font-size: 12px; color: #86868b; margin-top: 10px; }
+        :root { --apple-blue: #0071e3; --bg: #f5f5f7; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; }
+        .dashboard { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .controls { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-play { background: var(--apple-blue); color: white; }
+        .btn-init { background: #34c759; color: white; } /* 關鍵：喚醒按鈕 */
+        #script-content { margin-top: 30px; font-size: 24px; line-height: 1.6; color: #333; max-width: 800px; align-self: center; border: 1px dashed #ccc; padding: 20px; min-height: 200px; width: 100%; }
+        .segment { cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+        .active { background: #cce4ff; font-weight: bold; color: black; }
+        #status { font-size: 12px; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="dashboard">
     <div class="controls">
-        <div class="control-group" style="flex: 2;">
-            <label style="font-size:11px; font-weight:700">1. SCRIPT SOURCE</label>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 11px; font-weight: bold;">1. ACTIVATE ENGINE</label>
+            <button id="init-btn" class="btn btn-init" style="width: 100%;">Click to Wake Up Voice</button>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 11px; font-weight: bold;">2. SELECT VOICE</label>
+            <select id="voice-select" style="width: 100%; padding: 8px; border-radius: 8px;"></select>
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 11px; font-weight: bold;">3. SCRIPT</label>
             <input type="file" id="pdf-upload" accept="application/pdf">
         </div>
-        <div class="control-group" style="flex: 1;">
-            <label style="font-size:11px; font-weight:700">2. VOICE & SPEED (<span id="speed-val">1.0</span>x)</label>
-            <select id="voice-select" style="width:100%"></select>
-            <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button id="play-btn" class="btn-primary">PLAY</button>
-            <button id="loop-btn" class="btn-loop">SET LOOP</button>
-            <button id="stop-btn" class="btn-stop">STOP</button>
-        </div>
+        <button id="play-btn" class="btn btn-play">PLAY</button>
+        <button id="stop-btn" style="background:#ff3b30; color:white;" class="btn">STOP</button>
     </div>
-    <div class="hint-bar" id="hint-text">Click any sentence to start. Use "SET LOOP" for repetitive practice.</div>
+    <p id="status">System Status: Waiting for user activation...</p>
 </div>
 
-<div id="display-area">
-    <div id="script-content">Please upload a PDF script to start practicing your interview pitch.</div>
+<div id="script-content">
+    Your PDF content will appear here...
 </div>
 
 <script>
-    // Set PDF.js Worker
+    // 必須正確設定 Worker，否則 PDF 解析必失敗
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+    
     const synth = window.speechSynthesis;
     let segments = [];
     let currentIdx = 0;
-    let loopStart = null;
-    let loopEnd = null;
-    let isLoopMode = false; // Mode for picking range
-    let isLoopActive = false; // Actually looping
 
-    // Init Voices
+    // 語音載入邏輯
     function loadVoices() {
         const voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
         const select = document.getElementById('voice-select');
-        select.innerHTML = voices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+        if (voices.length > 0) {
+            select.innerHTML = voices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+            document.getElementById('status').innerText = "Status: Voice Engine Ready.";
+        }
     }
-    synth.onvoiceschanged = loadVoices;
-    loadVoices();
 
-    // PDF Upload
+    // 修正：必須有點擊動作才能喚醒聲音
+    document.getElementById('init-btn').onclick = () => {
+        const dummy = new SpeechSynthesisUtterance("Engine Active");
+        dummy.volume = 0.01; // 極小聲但能喚醒
+        synth.speak(dummy);
+        loadVoices();
+        document.getElementById('init-btn').innerText = "Engine Online ✅";
+    };
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    // PDF 解析處理
     document.getElementById('pdf-upload').onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         
-        document.getElementById('hint-text').innerText = "Processing PDF...";
+        document.getElementById('status').innerText = "Processing PDF... Please wait.";
         const reader = new FileReader();
         reader.onload = async function() {
-            const typedarray = new Uint8Array(this.result);
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-            let fullText = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                fullText += content.items.map(item => item.str).join(" ") + " ";
+            try {
+                const typedarray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(" ") + " ";
+                }
+                segments = fullText.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+                render();
+                document.getElementById('status').innerText = "Success: PDF Loaded.";
+            } catch (err) {
+                console.error(err);
+                alert("PDF Load Error: " + err.message);
             }
-            segments = fullText.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-            renderContent();
-            document.getElementById('hint-text').innerText = "Load Success. Click any sentence to play.";
         };
         reader.readAsArrayBuffer(file);
     };
 
-    function renderContent() {
-        const container = document.getElementById('script-content');
-        container.innerHTML = segments.map((s, i) => 
-            `<span id="seg-${i}" class="segment" data-idx="${i}">${s} </span>`
-        ).join('');
-
-        // Event Delegation for clicking segments
-        container.onclick = (e) => {
-            if (!e.target.classList.contains('segment')) return;
-            const idx = parseInt(e.target.getAttribute('data-idx'));
-            
-            if (isLoopMode) {
-                handleLoopSelection(idx);
-            } else {
-                startReading(idx);
-            }
-        };
+    function render() {
+        const div = document.getElementById('script-content');
+        div.innerHTML = segments.map((s, i) => `<span id="seg-${i}" class="segment" onclick="startAt(${i})">${s} </span>`).join('');
     }
 
-    function startReading(idx) {
+    window.startAt = function(idx) {
         synth.cancel();
         currentIdx = idx;
-        readNext();
-    }
+        speak();
+    };
 
-    function readNext() {
+    function speak() {
         if (currentIdx >= segments.length) return;
-
-        // Loop Logic
-        if (isLoopActive && currentIdx > loopEnd) {
-            currentIdx = loopStart;
-        }
 
         const utterance = new SpeechSynthesisUtterance(segments[currentIdx]);
         const voiceName = document.getElementById('voice-select').value;
         utterance.voice = synth.getVoices().find(v => v.name === voiceName);
-        utterance.rate = document.getElementById('speed').value;
+        utterance.rate = 1.0;
 
-        // Visual Highlight
-        document.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.segment').forEach(el => el.classList.remove('active'));
         const activeEl = document.getElementById(`seg-${currentIdx}`);
-        activeEl.classList.add('active');
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (activeEl) {
+            activeEl.classList.add('active');
+            activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
 
         utterance.onend = () => {
             if (!synth.paused) {
                 currentIdx++;
-                readNext();
+                speak();
             }
         };
         synth.speak(utterance);
     }
 
-    // Loop Functionality
-    document.getElementById('loop-btn').onclick = () => {
-        if (isLoopActive) {
-            clearLoop();
-        } else {
-            isLoopMode = true;
-            document.getElementById('hint-text').innerText = "Select START sentence...";
-        }
+    document.getElementById('play-btn').onclick = () => {
+        if (segments.length === 0) return alert("Please upload a PDF first.");
+        startAt(0);
     };
 
-    function handleLoopSelection(idx) {
-        if (loopStart === null) {
-            loopStart = idx;
-            document.getElementById(`seg
+    document.getElementById('stop-btn').onclick = () => synth.cancel();
+</script>
+</body>
+</html>
