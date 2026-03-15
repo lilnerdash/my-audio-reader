@@ -3,156 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Teleprompter Pro</title>
+    <title>Interview Coach Pro: Precision Training</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        :root {
-            --apple-blue: #0071e3;
-            --bg: #ffffff;
-            --text-gray: #86868b;
-        }
-        body { 
-            font-family: -apple-system, system-ui, sans-serif; 
-            background: var(--bg); margin: 0; padding: 0;
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-        }
-        /* Dashboard Section */
-        .dashboard {
-            background: rgba(250, 250, 252, 0.9);
-            backdrop-filter: blur(20px);
-            padding: 20px; border-bottom: 1px solid #d2d2d7;
-            z-index: 100;
-        }
-        .controls { display: flex; gap: 15px; align-items: flex-end; max-width: 1000px; margin: 0 auto; width: 100%; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-        label { font-size: 11px; font-weight: 700; color: var(--text-gray); text-transform: uppercase; }
+        :root { --apple-blue: #0071e3; --bg: #f5f5f7; --text: #1d1d1f; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
         
-        select, input[type="range"], button {
-            border-radius: 8px; border: 1px solid #d2d2d7; padding: 8px; font-size: 14px; background: white;
-        }
-        button { background: var(--apple-blue); color: white; border: none; font-weight: 600; cursor: pointer; padding: 8px 20px; }
-        button:hover { background: #0077ed; }
-        button.stop { background: #ff3b30; }
+        /* Fixed Dashboard */
+        .dashboard { background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); padding: 20px; border-bottom: 1px solid #d2d2d7; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; max-width: 1100px; margin: 0 auto; width: 100%; }
+        .btn-group { display: flex; gap: 8px; }
+        
+        button { border-radius: 8px; border: none; padding: 10px 15px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .btn-primary { background: var(--apple-blue); color: white; }
+        .btn-loop { background: #34c759; color: white; } /* Green for Loop */
+        .btn-stop { background: #ff3b30; color: white; }
+        .btn-export { background: #5856d6; color: white; } /* Purple for Export */
 
-        /* Teleprompter Section */
-        #teleprompter-container {
-            flex: 1; overflow-y: auto; padding: 200px 0 400px 0; /* Huge padding for center scroll */
-            scroll-behavior: smooth; display: flex; flex-direction: column; align-items: center;
-        }
-        #script-display {
-            width: 90%; max-width: 700px; font-size: 32px; line-height: 1.6; color: #d2d2d7; /* Ghost text */
-            transition: all 0.3s ease;
-        }
-        .segment { transition: all 0.3s ease; display: inline; margin-bottom: 10px; }
-        .active { 
-            color: #1d1d1f !important; 
-            font-weight: 600; 
-            background: #e1f0ff;
-            border-radius: 8px;
-            padding: 4px 8px;
-        }
+        /* Teleprompter Area */
+        #display-area { flex: 1; overflow-y: auto; padding: 150px 0 300px 0; display: flex; flex-direction: column; align-items: center; }
+        #script-content { width: 85%; max-width: 750px; font-size: 28px; line-height: 1.7; color: #86868b; }
         
-        /* Hidden file input */
-        #pdf-upload { font-size: 12px; }
+        .segment { cursor: pointer; transition: 0.2s; border-radius: 6px; padding: 0 4px; }
+        .segment:hover { background: #e8e8ed; color: var(--text); }
+        .active { color: var(--text) !important; font-weight: 700; background: #cce4ff; }
+        .loop-range { border-bottom: 3px solid #34c759; background: #e2f9e9; }
+        
+        .hint { font-size: 12px; color: #86868b; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="dashboard">
     <div class="controls">
-        <div class="control-group">
-            <label>1. Upload Script</label>
-            <input type="file" id="pdf-upload" accept="application/pdf">
+        <div>
+            <label style="font-size:11px; font-weight:700">VOICE & SPEED</label>
+            <select id="voice-select" style="width:100%"></select>
+            <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0" style="width:100%">
         </div>
-        <div class="control-group">
-            <label>2. Voice / Speed (<span id="speed-val">1.0</span>x)</label>
-            <select id="voice-select"></select>
-            <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
+        <div class="btn-group" style="align-items: flex-end;">
+            <button id="play" class="btn-primary">PLAY FROM START</button>
+            <button id="stop" class="btn-stop">STOP</button>
         </div>
-        <button id="play">START PITCH</button>
-        <button id="stop" class="stop">STOP</button>
+        <div class="btn-group" style="align-items: flex-end;">
+            <button id="set-loop" class="btn-loop">SET LOOP RANGE</button>
+            <button id="export-btn" class="btn-export">SAVE AUDIO</button>
+        </div>
+        <input type="file" id="pdf-upload" accept="application/pdf" style="font-size:11px; align-self:center">
     </div>
+    <div class="hint">Click any sentence to start reading from there. Click "Set Loop Range" then select start and end sentences.</div>
 </div>
 
-<div id="teleprompter-container">
-    <div id="script-display">
-        Your script will appear here... upload a PDF or paste text to start practicing.
-    </div>
+<div id="display-area">
+    <div id="script-content">Upload a script to begin your precision practice...</div>
 </div>
 
 <script>
     const synth = window.speechSynthesis;
-    const scriptDisplay = document.getElementById('script-display');
-    const container = document.getElementById('teleprompter-container');
-    let voices = [];
     let segments = [];
+    let isLooping = false;
+    let loopStart = null;
+    let loopEnd = null;
+    let mediaRecorder;
+    let audioChunks = [];
 
-    // Load Voices
+    // Initialize Voices
     function initVoices() {
-        voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
+        const voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
         document.getElementById('voice-select').innerHTML = voices.map((v, i) => 
-            `<option value="${i}">${v.name}</option>`).join('');
+            `<option value="${v.name}">${v.name}</option>`).join('');
     }
     synth.onvoiceschanged = initVoices;
     initVoices();
 
-    // PDF Extraction
+    // PDF Load
     document.getElementById('pdf-upload').addEventListener('change', async (e) => {
         const file = e.target.files[0];
-        if (!file) return;
-        
         const typedarray = new Uint8Array(await file.arrayBuffer());
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
-        let fullText = "";
-        
+        let text = "";
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(" ") + " ";
+            text += content.items.map(item => item.str).join(" ") + " ";
         }
-        renderScript(fullText);
+        segments = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+        render();
     });
 
-    function renderScript(text) {
-        // Split by sentences
-        segments = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-        scriptDisplay.innerHTML = segments.map((s, i) => 
-            `<span id="seg-${i}" class="segment">${s} </span>`
-        ).join('');
+    function render() {
+        const content = document.getElementById('script-content');
+        content.innerHTML = segments.map((s, i) => `<span id="seg-${i}" class="segment" onclick="playFrom(${i})">${s} </span>`).join('');
+    }
+
+    function playFrom(index) {
+        synth.cancel();
+        speak(index);
     }
 
     function speak(index) {
         if (index >= segments.length) return;
+        
+        // Loop Logic
+        if (isLooping && loopEnd !== null && index > loopEnd) {
+            index = loopStart;
+        }
 
-        // Visual updates
-        document.querySelectorAll('.segment').forEach(el => el.classList.remove('active'));
-        const activeEl = document.getElementById(`seg-${index}`);
-        activeEl.classList.add('active');
-
-        // Center Auto-Scroll
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const el = document.getElementById(`seg-${index}`);
+        document.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         const utterance = new SpeechSynthesisUtterance(segments[index]);
-        utterance.voice = voices[document.getElementById('voice-select').value];
+        utterance.voice = synth.getVoices().find(v => v.name === document.getElementById('voice-select').value);
         utterance.rate = document.getElementById('speed').value;
 
         utterance.onend = () => {
             if (!synth.paused) speak(index + 1);
         };
-
         synth.speak(utterance);
     }
 
-    document.getElementById('play').addEventListener('click', () => {
-        synth.cancel();
-        if (segments.length > 0) speak(0);
-    });
-
-    document.getElementById('stop').addEventListener('click', () => synth.cancel());
-    document.getElementById('speed').oninput = (e) => {
-        document.getElementById('speed-val').innerText = e.target.value;
-    };
-</script>
-
-</body>
-</html>
+    // Loop Feature
+    document.getElementById('set-loop').onclick = () => {
+        if (!isLooping) {
+            alert("Step 1: Click the START sentence\nStep 2: Click the END sentence");
+            document.querySelectorAll('.segment').forEach(s => s.onclick = (e) => {
+                const idx = parseInt(e.target.id.split('-')[1]);
+                if (loopStart === null) {
+                    loopStart = idx;
+                    e.target.classList.add('loop-range');
+                } else {
+                    loopEnd = idx;
+                    markLoopRange();
+                    isLooping
